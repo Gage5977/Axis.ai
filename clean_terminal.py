@@ -23,19 +23,44 @@ class CleanTerminal:
     def __init__(self):
         self.mode = "chat"
         self.model = "mistral:latest"
-        self.width = shutil.get_terminal_size().columns
-        self.wrapper = textwrap.TextWrapper(width=min(self.width - 4, 80))
+        self.update_width()
+        
+    def update_width(self):
+        """Update terminal width dynamically"""
+        try:
+            self.width = shutil.get_terminal_size().columns
+        except:
+            self.width = 80
+        # Ensure consistent wrapping with margin
+        wrap_width = max(40, min(self.width - 4, 100))
+        self.wrapper = textwrap.TextWrapper(
+            width=wrap_width,
+            break_long_words=False,
+            break_on_hyphens=False
+        )
         
     def clear(self):
         os.system('clear' if os.name != 'nt' else 'cls')
         
     def print_wrapped(self, text, prefix="", color=""):
         """Print text with proper wrapping"""
+        # Update width before each print
+        self.update_width()
+        
+        if not text:
+            print()
+            return
+            
         if prefix:
+            # Split prefix for alignment
+            prefix_len = len(prefix)
+            indent = ' ' * prefix_len
+            
             lines = self.wrapper.wrap(text)
-            print(f"{color}{prefix}{lines[0]}")
-            for line in lines[1:]:
-                print(f"{' ' * len(prefix)}{line}")
+            if lines:
+                print(f"{color}{prefix}{lines[0]}")
+                for line in lines[1:]:
+                    print(f"{indent}{line}")
         else:
             for line in self.wrapper.wrap(text):
                 print(f"{color}{line}")
@@ -90,6 +115,9 @@ class CleanTerminal:
         
         while True:
             try:
+                # Update width before prompt
+                self.update_width()
+                
                 # Prompt
                 prompt = f"[{self.mode}] > "
                 user_input = input(prompt).strip()
