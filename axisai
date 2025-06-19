@@ -1,0 +1,256 @@
+#!/usr/bin/env bash
+
+# AxisAI - Your Personal Multi-Model AI Agent
+# Intelligently routes queries to the best available model
+
+VERSION="1.0.0"
+SCRIPT_DIR="$(dirname "$0")"
+
+# ANSI color codes for beautiful output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# Available models and their specialties
+get_model() {
+    case "$1" in
+        "finance") echo "finance-assistant:latest" ;;
+        "code") echo "qwen3:14b" ;;
+        "general") echo "mistral:latest" ;;
+        "fast") echo "llama3.2:latest" ;;
+        "embed") echo "nomic-embed-text:latest" ;;
+        *) echo "" ;;
+    esac
+}
+
+print_banner() {
+    echo -e "${CYAN}"
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                      ${WHITE}${BOLD}AxisAI v${VERSION}${NC}${CYAN}                         ║"
+    echo "║              ${WHITE}Your Personal AI Agent Assistant${NC}${CYAN}             ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo -e "${NC}"
+}
+
+print_help() {
+    print_banner
+    echo -e "${WHITE}${BOLD}USAGE:${NC}"
+    echo -e "  ${GREEN}axisai${NC} [options] ${YELLOW}\"your question\"${NC}"
+    echo ""
+    echo -e "${WHITE}${BOLD}OPTIONS:${NC}"
+    echo -e "  ${BLUE}-m, --model${NC}      Specify model: finance, code, general, fast"
+    echo -e "  ${BLUE}-i, --interactive${NC} Start interactive chat mode"
+    echo -e "  ${BLUE}-l, --list${NC}       List all available models"
+    echo -e "  ${BLUE}-t, --temp${NC}       Set temperature (0.1-1.0, default: 0.7)"
+    echo -e "  ${BLUE}-v, --verbose${NC}    Verbose output"
+    echo -e "  ${BLUE}-h, --help${NC}       Show this help"
+    echo ""
+    echo -e "${WHITE}${BOLD}EXAMPLES:${NC}"
+    echo -e "  ${GREEN}axisai${NC} ${YELLOW}\"What is machine learning?\"${NC}"
+    echo -e "  ${GREEN}axisai${NC} ${BLUE}-m code${NC} ${YELLOW}\"Write a Python function to sort a list\"${NC}"
+    echo -e "  ${GREEN}axisai${NC} ${BLUE}-m finance${NC} ${YELLOW}\"Analyze TSLA stock performance\"${NC}"
+    echo -e "  ${GREEN}axisai${NC} ${BLUE}-i${NC}  ${PURPLE}# Start interactive mode${NC}"
+    echo -e "  ${GREEN}axisai${NC} ${BLUE}-l${NC}  ${PURPLE}# List available models${NC}"
+    echo ""
+    echo -e "${WHITE}${BOLD}MODEL SPECIALTIES:${NC}"
+    echo -e "  ${YELLOW}finance${NC}  - Financial analysis, market insights, investment advice"
+    echo -e "  ${YELLOW}code${NC}     - Programming, debugging, technical documentation"
+    echo -e "  ${YELLOW}general${NC}  - General knowledge, creative writing, explanations"
+    echo -e "  ${YELLOW}fast${NC}     - Quick responses, simple questions"
+}
+
+list_models() {
+    echo -e "${WHITE}${BOLD}Available Models:${NC}"
+    echo ""
+    ollama list
+    echo ""
+    echo -e "${WHITE}${BOLD}AxisAI Model Routing:${NC}"
+    echo -e "  ${YELLOW}finance${NC} → ${GREEN}$(get_model finance)${NC}"
+    echo -e "  ${YELLOW}code${NC}    → ${GREEN}$(get_model code)${NC}"
+    echo -e "  ${YELLOW}general${NC} → ${GREEN}$(get_model general)${NC}"
+    echo -e "  ${YELLOW}fast${NC}    → ${GREEN}$(get_model fast)${NC}"
+    echo -e "  ${YELLOW}embed${NC}   → ${GREEN}$(get_model embed)${NC}"
+}
+
+detect_query_type() {
+    local query="$1"
+    query_lower=$(echo "$query" | tr '[:upper:]' '[:lower:]')
+    
+    # Finance keywords
+    if [[ $query_lower =~ (stock|market|finance|investment|trading|portfolio|crypto|bitcoin|economy|financial) ]]; then
+        echo "finance"
+        return
+    fi
+    
+    # Code keywords
+    if [[ $query_lower =~ (code|program|function|debug|python|javascript|algorithm|software|api|database) ]]; then
+        echo "code"
+        return
+    fi
+    
+    # Default to general
+    echo "general"
+}
+
+run_query() {
+    local model="$1"
+    local query="$2"
+    local temperature="$3"
+    local verbose="$4"
+    local model_name=$(get_model "$model")
+    
+    if [[ "$verbose" == "true" ]]; then
+        echo -e "${PURPLE}[AxisAI]${NC} Using model: ${GREEN}${model_name}${NC}"
+        echo -e "${PURPLE}[AxisAI]${NC} Temperature: ${YELLOW}${temperature}${NC}"
+        echo -e "${PURPLE}[AxisAI]${NC} Query: ${CYAN}${query}${NC}"
+        echo ""
+    fi
+    
+    echo -e "${BLUE}🤖 AxisAI responding...${NC}"
+    echo ""
+    
+    if [[ -n "$temperature" && "$temperature" != "0.7" ]]; then
+        ollama run "$model_name" --temperature "$temperature" "$query"
+    else
+        ollama run "$model_name" "$query"
+    fi
+}
+
+interactive_mode() {
+    print_banner
+    echo -e "${GREEN}Welcome to AxisAI Interactive Mode!${NC}"
+    echo -e "${YELLOW}Type 'exit' or 'quit' to leave, 'help' for commands${NC}"
+    echo ""
+    
+    while true; do
+        echo -ne "${CYAN}AxisAI>${NC} "
+        read -r user_input
+        
+        case "$user_input" in
+            "exit"|"quit"|"q")
+                echo -e "${GREEN}Goodbye! 👋${NC}"
+                break
+                ;;
+            "help"|"h")
+                echo -e "${YELLOW}Interactive Commands:${NC}"
+                echo -e "  ${BLUE}switch <model>${NC} - Switch to specific model (finance, code, general, fast)"
+                echo -e "  ${BLUE}models${NC}          - List available models"
+                echo -e "  ${BLUE}clear${NC}           - Clear screen"
+                echo -e "  ${BLUE}exit/quit${NC}       - Exit interactive mode"
+                echo ""
+                ;;
+            "models")
+                list_models
+                ;;
+            "clear")
+                clear
+                print_banner
+                ;;
+            switch\ *)
+                new_model="${user_input#switch }"
+                if [[ -n "$(get_model "$new_model")" ]]; then
+                    current_model="$new_model"
+                    echo -e "${GREEN}Switched to $(get_model "$new_model")${NC}"
+                else
+                    echo -e "${RED}Unknown model: $new_model${NC}"
+                fi
+                ;;
+            "")
+                continue
+                ;;
+            *)
+                detected_model=$(detect_query_type "$user_input")
+                run_query "$detected_model" "$user_input" "0.7" "true"
+                echo ""
+                ;;
+        esac
+    done
+}
+
+# Main script logic
+main() {
+    local model=""
+    local query=""
+    local temperature="0.7"
+    local interactive=false
+    local verbose=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -m|--model)
+                model="$2"
+                shift 2
+                ;;
+            -i|--interactive)
+                interactive=true
+                shift
+                ;;
+            -l|--list)
+                list_models
+                exit 0
+                ;;
+            -t|--temp|--temperature)
+                temperature="$2"
+                shift 2
+                ;;
+            -v|--verbose)
+                verbose=true
+                shift
+                ;;
+            -h|--help)
+                print_help
+                exit 0
+                ;;
+            *)
+                query="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    # Interactive mode
+    if [[ "$interactive" == "true" ]]; then
+        interactive_mode
+        exit 0
+    fi
+    
+    # No query provided
+    if [[ -z "$query" ]]; then
+        print_help
+        exit 1
+    fi
+    
+    # Auto-detect model if not specified
+    if [[ -z "$model" ]]; then
+        model=$(detect_query_type "$query")
+        if [[ "$verbose" == "true" ]]; then
+            echo -e "${PURPLE}[AxisAI]${NC} Auto-detected specialty: ${YELLOW}${model}${NC}"
+        fi
+    fi
+    
+    # Validate model
+    if [[ -z "$(get_model "$model")" ]]; then
+        echo -e "${RED}Error: Unknown model '$model'${NC}"
+        echo -e "${YELLOW}Available models: finance, code, general, fast${NC}"
+        exit 1
+    fi
+    
+    # Run the query
+    run_query "$model" "$query" "$temperature" "$verbose"
+}
+
+# Check if ollama is installed
+if ! command -v ollama &> /dev/null; then
+    echo -e "${RED}Error: ollama is not installed or not in PATH${NC}"
+    exit 1
+fi
+
+# Run main function
+main "$@" 

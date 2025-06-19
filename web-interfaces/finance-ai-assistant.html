@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance AI Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0f1b;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1a2332 0%, #2a3f5f 100%);
+            padding: 15px 20px;
+            border-bottom: 1px solid #3a4f6f;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            background: linear-gradient(45deg, #4CAF50, #2196F3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .header h1::before {
+            content: "📊";
+            -webkit-text-fill-color: initial;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .model-selector select {
+            background: #2a3f5f;
+            color: #e0e0e0;
+            border: 1px solid #3a4f6f;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 280px;
+            background: #1a2332;
+            border-right: 1px solid #3a4f6f;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .sidebar h3 {
+            font-size: 14px;
+            text-transform: uppercase;
+            color: #8a9bb3;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .quick-prompts {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 25px;
+        }
+        
+        .prompt-btn {
+            background: #2a3f5f;
+            border: 1px solid #3a4f6f;
+            color: #e0e0e0;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            font-size: 13px;
+        }
+        
+        .prompt-btn:hover {
+            background: #3a4f6f;
+            transform: translateX(5px);
+        }
+        
+        .prompt-btn.analysis { border-left: 3px solid #4CAF50; }
+        .prompt-btn.calculation { border-left: 3px solid #2196F3; }
+        .prompt-btn.strategy { border-left: 3px solid #FF9800; }
+        .prompt-btn.risk { border-left: 3px solid #f44336; }
+        
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            max-width: 1000px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        
+        .message {
+            margin: 20px 0;
+            display: flex;
+            gap: 15px;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+            font-size: 18px;
+        }
+        
+        .user .avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .assistant .avatar {
+            background: linear-gradient(135deg, #4CAF50 0%, #2196F3 100%);
+        }
+        
+        .message-content {
+            flex: 1;
+            background: #1a2332;
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 1px solid #2a3f5f;
+        }
+        
+        .message-content h4 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #8a9bb3;
+        }
+        
+        .message-text {
+            line-height: 1.6;
+            color: #e0e0e0;
+            white-space: pre-wrap;
+        }
+        
+        .message-text code {
+            background: #2a3f5f;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+        }
+        
+        .message-text pre {
+            background: #0a0f1b;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 10px 0;
+            border: 1px solid #2a3f5f;
+        }
+        
+        .input-container {
+            background: #1a2332;
+            border-top: 1px solid #3a4f6f;
+            padding: 20px;
+        }
+        
+        .input-wrapper {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        
+        .input-box {
+            flex: 1;
+            background: #2a3f5f;
+            border: 1px solid #3a4f6f;
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #e0e0e0;
+            font-size: 15px;
+            resize: none;
+            min-height: 24px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: inherit;
+        }
+        
+        .input-box:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+        }
+        
+        .send-button {
+            background: linear-gradient(135deg, #4CAF50 0%, #2196F3 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .send-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+        
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1a2332;
+            border: 1px solid #3a4f6f;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4CAF50;
+        }
+        
+        .finance-tools {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #3a4f6f;
+        }
+        
+        .tool-section {
+            margin-bottom: 20px;
+        }
+        
+        .tool-section h4 {
+            font-size: 13px;
+            color: #8a9bb3;
+            margin-bottom: 10px;
+        }
+        
+        .tool-input {
+            width: 100%;
+            background: #2a3f5f;
+            border: 1px solid #3a4f6f;
+            color: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        
+        .calculate-btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            width: 100%;
+        }
+        
+        .calculate-btn:hover {
+            background: #1976D2;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Finance AI Assistant</h1>
+        <div class="controls">
+            <div class="model-selector">
+                <select id="modelSelect">
+                    <option value="finance-assistant:latest">Finance Assistant</option>
+                    <option value="qwen3:14b">Qwen3 14B (General)</option>
+                    <option value="llama3.2:latest">Llama 3.2 (Fast)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <div class="sidebar">
+            <h3>Quick Analysis</h3>
+            <div class="quick-prompts">
+                <button class="prompt-btn analysis" onclick="sendPrompt('Analyze the current market conditions and provide insights on potential investment opportunities')">
+                    📈 Market Analysis
+                </button>
+                <button class="prompt-btn analysis" onclick="sendPrompt('Explain the key financial ratios I should look at when evaluating a stock')">
+                    📊 Financial Ratios Guide
+                </button>
+                <button class="prompt-btn calculation" onclick="sendPrompt('Calculate the compound annual growth rate (CAGR) formula and show an example')">
+                    🧮 CAGR Calculator
+                </button>
+                <button class="prompt-btn calculation" onclick="sendPrompt('Help me calculate the present value of future cash flows')">
+                    💰 NPV Calculator
+                </button>
+                <button class="prompt-btn strategy" onclick="sendPrompt('Explain different portfolio diversification strategies for risk management')">
+                    🎯 Portfolio Strategy
+                </button>
+                <button class="prompt-btn strategy" onclick="sendPrompt('What are the best tax-efficient investment strategies?')">
+                    💼 Tax Strategies
+                </button>
+                <button class="prompt-btn risk" onclick="sendPrompt('Explain Value at Risk (VaR) and how to calculate it')">
+                    ⚠️ Risk Assessment
+                </button>
+                <button class="prompt-btn risk" onclick="sendPrompt('How do I hedge my portfolio against market downturns?')">
+                    🛡️ Hedging Strategies
+                </button>
+            </div>
+            
+            <h3>Financial Calculators</h3>
+            <div class="finance-tools">
+                <div class="tool-section">
+                    <h4>ROI Calculator</h4>
+                    <input type="number" class="tool-input" id="initialInvestment" placeholder="Initial Investment ($)">
+                    <input type="number" class="tool-input" id="finalValue" placeholder="Final Value ($)">
+                    <button class="calculate-btn" onclick="calculateROI()">Calculate ROI</button>
+                </div>
+                
+                <div class="tool-section">
+                    <h4>Loan Calculator</h4>
+                    <input type="number" class="tool-input" id="loanAmount" placeholder="Loan Amount ($)">
+                    <input type="number" class="tool-input" id="interestRate" placeholder="Interest Rate (%)">
+                    <input type="number" class="tool-input" id="loanTerm" placeholder="Term (years)">
+                    <button class="calculate-btn" onclick="calculateLoan()">Calculate Payment</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-area">
+            <div id="chatContainer" class="chat-container"></div>
+            
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea 
+                        id="messageInput" 
+                        class="input-box" 
+                        placeholder="Ask about stocks, bonds, portfolio management, financial analysis..."
+                        rows="1"
+                    ></textarea>
+                    <button id="sendButton" class="send-button" onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="status" class="status">
+        <div class="status-dot"></div>
+        <span id="statusText">Connected to Finance AI</span>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const modelSelect = document.getElementById('modelSelect');
+        const apiBase = window.location.protocol === 'http:' && window.location.hostname === 'localhost' ? '' : 'http://localhost:11434';
+        
+        function addMessage(role, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.textContent = role === 'user' ? '👤' : '🤖';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            const title = document.createElement('h4');
+            title.textContent = role === 'user' ? 'You' : 'Finance AI Assistant';
+            
+            const messageText = document.createElement('div');
+            messageText.className = 'message-text';
+            
+            // Simple markdown-like formatting
+            content = content.replace(/```([\s\S]*?)```/g, '<pre>$1</pre>');
+            content = content.replace(/`([^`]+)`/g, '<code>$1</code>');
+            content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            messageText.innerHTML = content;
+            
+            messageContent.appendChild(title);
+            messageContent.appendChild(messageText);
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            messageInput.value = '';
+            sendButton.disabled = true;
+            
+            addMessage('user', message);
+            
+            try {
+                const response = await fetch(apiBase + '/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: modelSelect.value,
+                        prompt: `You are a professional financial advisor and analyst. Provide accurate, detailed financial advice. ${message}`,
+                        stream: false
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.response) {
+                    addMessage('assistant', data.response);
+                } else {
+                    addMessage('assistant', 'Error: No response received');
+                }
+                
+            } catch (error) {
+                addMessage('assistant', `Error: ${error.message}. Make sure the server is running.`);
+            } finally {
+                sendButton.disabled = false;
+                messageInput.focus();
+            }
+        }
+        
+        function sendPrompt(prompt) {
+            messageInput.value = prompt;
+            sendMessage();
+        }
+        
+        function calculateROI() {
+            const initial = parseFloat(document.getElementById('initialInvestment').value);
+            const final = parseFloat(document.getElementById('finalValue').value);
+            
+            if (initial && final) {
+                const roi = ((final - initial) / initial * 100).toFixed(2);
+                const profit = (final - initial).toFixed(2);
+                sendPrompt(`Calculate ROI: Initial investment: $${initial}, Final value: $${final}. The ROI is ${roi}% with a profit of $${profit}. Please provide a detailed analysis of this return and compare it to market benchmarks.`);
+            }
+        }
+        
+        function calculateLoan() {
+            const principal = parseFloat(document.getElementById('loanAmount').value);
+            const rate = parseFloat(document.getElementById('interestRate').value) / 100 / 12;
+            const terms = parseFloat(document.getElementById('loanTerm').value) * 12;
+            
+            if (principal && rate && terms) {
+                const payment = (principal * rate * Math.pow(1 + rate, terms)) / (Math.pow(1 + rate, terms) - 1);
+                sendPrompt(`Calculate loan payment: Principal: $${principal}, Interest rate: ${(rate*12*100).toFixed(2)}%, Term: ${terms/12} years. Monthly payment: $${payment.toFixed(2)}. Please provide a full amortization analysis and tips for paying off the loan faster.`);
+            }
+        }
+        
+        // Auto-resize textarea
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+        
+        // Send on Enter
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Initial message
+        window.onload = () => {
+            addMessage('assistant', 'Welcome to your Finance AI Assistant! I can help you with:\n\n• Stock and market analysis\n• Portfolio management strategies\n• Financial calculations (ROI, NPV, CAGR)\n• Risk assessment and management\n• Tax-efficient investing\n• Financial planning advice\n\nUse the quick prompts on the left or ask me anything about finance!');
+            messageInput.focus();
+        };
+    </script>
+</body>
+</html>

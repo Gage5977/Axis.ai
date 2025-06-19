@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local AI Assistant - Advanced UI</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: #1a1a1a;
+            padding: 15px 20px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            background: linear-gradient(45deg, #00ff88, #00aaff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .model-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .model-selector select {
+            background: #2a2a2a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        
+        .message {
+            margin: 20px 0;
+            display: flex;
+            gap: 15px;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .user .avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .assistant .avatar {
+            background: linear-gradient(135deg, #00ff88 0%, #00aaff 100%);
+        }
+        
+        .message-content {
+            flex: 1;
+        }
+        
+        .message-content h4 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            opacity: 0.8;
+        }
+        
+        .message-text {
+            line-height: 1.6;
+            color: #e0e0e0;
+        }
+        
+        .message-text pre {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        
+        .message-text code {
+            background: #2a2a2a;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+        }
+        
+        .message-text pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        .input-container {
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            padding: 20px;
+        }
+        
+        .input-wrapper {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        
+        .input-box {
+            flex: 1;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 12px;
+            color: #e0e0e0;
+            font-size: 16px;
+            resize: none;
+            min-height: 24px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: inherit;
+        }
+        
+        .input-box:focus {
+            outline: none;
+            border-color: #00ff88;
+        }
+        
+        .send-button {
+            background: linear-gradient(135deg, #00ff88 0%, #00aaff 100%);
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .send-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+        
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .typing-indicator {
+            display: none;
+            padding: 10px;
+            color: #888;
+        }
+        
+        .typing-indicator.active {
+            display: block;
+        }
+        
+        .typing-indicator span {
+            animation: blink 1.4s infinite;
+        }
+        
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes blink {
+            0%, 60%, 100% { opacity: 0.3; }
+            30% { opacity: 1; }
+        }
+        
+        .status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            background: #2a2a2a;
+            border-radius: 20px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff88;
+        }
+        
+        .clear-button {
+            background: #2a2a2a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .clear-button:hover {
+            background: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Local AI Assistant</h1>
+        <div class="model-selector">
+            <button class="clear-button" onclick="clearChat()">Clear Chat</button>
+            <select id="modelSelect">
+                <option value="qwen3:14b">Qwen3 14B</option>
+                <option value="llama3.2:latest">Llama 3.2</option>
+            </select>
+        </div>
+    </div>
+    
+    <div id="chatContainer" class="chat-container"></div>
+    
+    <div class="typing-indicator" id="typingIndicator">
+        <div class="message">
+            <div class="avatar">AI</div>
+            <div class="message-content">
+                <span>●</span><span>●</span><span>●</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="input-container">
+        <div class="input-wrapper">
+            <textarea 
+                id="messageInput" 
+                class="input-box" 
+                placeholder="Ask me anything..."
+                rows="1"
+            ></textarea>
+            <button id="sendButton" class="send-button" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+    
+    <div class="status">
+        <div class="status-dot"></div>
+        <span>Connected to Local AI</span>
+    </div>
+
+    <script>
+        let conversationHistory = [];
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const modelSelect = document.getElementById('modelSelect');
+        
+        // Auto-resize textarea
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+        
+        // Send on Enter (Shift+Enter for new line)
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        function addMessage(role, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.textContent = role === 'user' ? 'U' : 'AI';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            const title = document.createElement('h4');
+            title.textContent = role === 'user' ? 'You' : 'AI Assistant';
+            
+            const messageText = document.createElement('div');
+            messageText.className = 'message-text';
+            
+            // Parse markdown for AI responses
+            if (role === 'assistant') {
+                messageText.innerHTML = marked.parse(content);
+            } else {
+                messageText.textContent = content;
+            }
+            
+            messageContent.appendChild(title);
+            messageContent.appendChild(messageText);
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            // Disable input while processing
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+            sendButton.disabled = true;
+            
+            // Add user message
+            addMessage('user', message);
+            conversationHistory.push({ role: 'user', content: message });
+            
+            // Show typing indicator
+            typingIndicator.classList.add('active');
+            chatContainer.appendChild(typingIndicator);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            try {
+                // Build conversation context
+                let prompt = conversationHistory.map(msg => 
+                    `${msg.role === 'user' ? 'Human' : 'Assistant'}: ${msg.content}`
+                ).join('\n\n') + '\n\nAssistant:';
+                
+                const response = await fetch('http://localhost:11434/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: modelSelect.value,
+                        prompt: prompt,
+                        stream: false,
+                        context: conversationHistory.length > 0 ? conversationHistory : undefined
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Hide typing indicator
+                typingIndicator.classList.remove('active');
+                
+                // Add AI response
+                addMessage('assistant', data.response);
+                conversationHistory.push({ role: 'assistant', content: data.response });
+                
+            } catch (error) {
+                typingIndicator.classList.remove('active');
+                addMessage('assistant', `Error: ${error.message}. Make sure Ollama is running on port 11434.`);
+            } finally {
+                sendButton.disabled = false;
+                messageInput.focus();
+            }
+        }
+        
+        function clearChat() {
+            chatContainer.innerHTML = '';
+            conversationHistory = [];
+            addMessage('assistant', 'Chat cleared. How can I help you today?');
+        }
+        
+        // Initial greeting
+        window.onload = () => {
+            addMessage('assistant', 'Hello! I\'m your local AI assistant running on your device. How can I help you today?');
+            messageInput.focus();
+        };
+    </script>
+</body>
+</html> 

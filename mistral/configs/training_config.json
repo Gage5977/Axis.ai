@@ -1,0 +1,17 @@
+{
+  "model": "mistral-enhanced",
+  "training": {
+    "data_path": "/Users/axisthornllc/Documents/AI-Projects/mistral-training/data",
+    "output_path": "/Users/axisthornllc/Documents/AI-Projects/mistral-training/models",
+    "num_epochs": 3,
+    "batch_size": 1,
+    "learning_rate": 5e-05,
+    "warmup_steps": 100
+  },
+  "experts": [
+    "code",
+    "math",
+    "reasoning"
+  ],
+  "generated_at": "2025-06-18T21:05:11.638268"
+}

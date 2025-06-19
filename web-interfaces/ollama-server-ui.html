@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Local AI Assistant with Ollama integration for private, offline AI conversations">
+    <title>Local AI Assistant - Server Mode</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: #1a1a1a;
+            padding: 15px 20px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            background: linear-gradient(45deg, #00ff88, #00aaff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+        }
+        
+        .model-selector select {
+            background: #2a2a2a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .clear-button {
+            background: #2a2a2a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .clear-button:hover {
+            background: #3a3a3a;
+            border-color: #666;
+        }
+        
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        
+        .message {
+            margin: 20px 0;
+            display: flex;
+            gap: 15px;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .user .avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .assistant .avatar {
+            background: linear-gradient(135deg, #00ff88 0%, #00aaff 100%);
+        }
+        
+        .error .avatar {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        }
+        
+        .message-content {
+            flex: 1;
+        }
+        
+        .message-content h4 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            opacity: 0.8;
+        }
+        
+        .message-text {
+            line-height: 1.6;
+            color: #e0e0e0;
+            white-space: pre-wrap;
+        }
+        
+        .error .message-text {
+            color: #ff6b6b;
+        }
+        
+        .input-container {
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            padding: 20px;
+        }
+        
+        .input-wrapper {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            position: relative;
+        }
+        
+        .char-counter {
+            position: absolute;
+            bottom: 5px;
+            right: 100px;
+            font-size: 11px;
+            color: #666;
+            pointer-events: none;
+        }
+        
+        .char-counter.warning {
+            color: #ff6b6b;
+        }
+        
+        .input-box {
+            flex: 1;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 12px;
+            color: #e0e0e0;
+            font-size: 16px;
+            resize: none;
+            min-height: 24px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: inherit;
+        }
+        
+        .input-box:focus {
+            outline: none;
+            border-color: #00ff88;
+        }
+        
+        .send-button {
+            background: linear-gradient(135deg, #00ff88 0%, #00aaff 100%);
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .send-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+        
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status.connected {
+            background: #2a2a2a;
+        }
+        
+        .status.error {
+            background: #ff6b6b;
+            color: white;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        
+        .status.connected .status-dot {
+            background: #00ff88;
+        }
+        
+        .status.error .status-dot {
+            background: white;
+        }
+        
+        .typing-indicator {
+            display: none;
+        }
+        
+        .typing-indicator.active {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin: 15px 0;
+        }
+        
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #666;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% { opacity: 0.3; }
+            40% { opacity: 1; }
+        }
+        
+        .typing-indicator .avatar-content {
+            background: linear-gradient(135deg, #00ff88 0%, #00aaff 100%);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+        }
+        
+        .typing-text {
+            color: #666;
+        }
+        
+        /* Screen reader only text */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        
+        /* Code blocks */
+        .message-text pre {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        
+        .message-text code {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            color: #00ff88;
+        }
+        
+        /* Focus styles */
+        *:focus {
+            outline: 2px solid #00ff88;
+            outline-offset: 2px;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .chat-container {
+                padding: 10px;
+            }
+            
+            .message {
+                gap: 10px;
+            }
+            
+            .avatar {
+                width: 32px;
+                height: 32px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Local AI Assistant</h1>
+        <div class="header-controls">
+            <button id="clearButton" class="clear-button" aria-label="Clear chat history">Clear Chat</button>
+            <div class="model-selector">
+                <label for="modelSelect" class="sr-only">Select AI Model</label>
+                <select id="modelSelect" aria-label="Select AI Model">
+                    <option value="qwen3:14b">Qwen3 14B</option>
+                    <option value="llama3.2:latest">Llama 3.2</option>
+                    <option value="finance-assistant:latest">Finance Assistant</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <main id="chatContainer" class="chat-container" role="log" aria-label="Chat messages" aria-live="polite"></main>
+    
+    <div id="typingIndicator" class="typing-indicator" role="status" aria-live="polite">
+        <div class="avatar">
+            <div class="avatar-content">AI</div>
+        </div>
+        <div class="typing-text">AI is typing...</div>
+        <div class="typing-dots">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+        </div>
+    </div>
+    
+    <div class="input-container">
+        <div class="input-wrapper">
+            <label for="messageInput" class="sr-only">Message input</label>
+            <textarea 
+                id="messageInput" 
+                class="input-box" 
+                placeholder="Ask me anything..."
+                rows="1"
+                aria-label="Message input"
+                maxlength="10000"
+            ></textarea>
+            <span id="charCounter" class="char-counter" aria-live="polite" aria-atomic="true"></span>
+            <button id="sendButton" class="send-button" aria-label="Send message">Send</button>
+        </div>
+    </div>
+    
+    <div id="status" class="status connected" role="status" aria-live="polite">
+        <div class="status-dot" aria-hidden="true"></div>
+        <span id="statusText">Checking connection...</span>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const modelSelect = document.getElementById('modelSelect');
+        const status = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const charCounter = document.getElementById('charCounter');
+        const clearButton = document.getElementById('clearButton');
+        
+        // Check if running through local server
+        const isLocalServer = window.location.protocol === 'http:' && window.location.hostname === 'localhost';
+        const apiBase = isLocalServer ? '' : 'http://localhost:11434';
+        
+        // Chat history management
+        const CHAT_HISTORY_KEY = 'ollama-chat-history';
+        const MAX_HISTORY_SIZE = 50; // Keep last 50 messages
+        
+        function saveChatHistory() {
+            const messages = [];
+            const messageElements = chatContainer.querySelectorAll('.message');
+            
+            messageElements.forEach(el => {
+                const role = el.classList.contains('user') ? 'user' : 
+                           el.classList.contains('assistant') ? 'assistant' : 'error';
+                const content = el.querySelector('.message-text').textContent;
+                messages.push({ role, content });
+            });
+            
+            // Keep only the last MAX_HISTORY_SIZE messages
+            const trimmedMessages = messages.slice(-MAX_HISTORY_SIZE);
+            
+            try {
+                localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(trimmedMessages));
+            } catch (e) {
+                console.error('Failed to save chat history:', e);
+            }
+        }
+        
+        function loadChatHistory() {
+            try {
+                const saved = localStorage.getItem(CHAT_HISTORY_KEY);
+                if (saved) {
+                    const messages = JSON.parse(saved);
+                    messages.forEach(msg => {
+                        addMessage(msg.role, msg.content, false); // false = don't save again
+                    });
+                    return true;
+                }
+            } catch (e) {
+                console.error('Failed to load chat history:', e);
+            }
+            return false;
+        }
+        
+        // Check Ollama connection
+        async function checkConnection(showErrors = true) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+                
+                const response = await fetch(apiBase + '/api/tags', {
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    status.className = 'status connected';
+                    statusText.textContent = isLocalServer ? 'Connected via Local Server' : 'Connected to Local AI';
+                    return true;
+                } else {
+                    throw new Error(`Server responded with status ${response.status}`);
+                }
+            } catch (error) {
+                status.className = 'status error';
+                statusText.textContent = 'Connection Failed';
+                
+                if (showErrors) {
+                    let errorMsg;
+                    if (error.name === 'AbortError') {
+                        errorMsg = 'Connection timeout: The server took too long to respond.';
+                    } else if (isLocalServer) {
+                        errorMsg = 'Connection Error: Cannot reach Ollama through the local server.\n\nMake sure:\n1. The Python server is running\n2. Ollama is running (ollama serve)\n3. Both are accessible';
+                    } else {
+                        errorMsg = 'Connection Error: Cannot connect to Ollama directly.\n\nTroubleshooting:\n1. Run the Python server: python3 start-local-server.py\n2. Then open: http://localhost:8000/ollama-server-ui.html\n3. Or make sure Ollama allows CORS';
+                    }
+                    
+                    addMessage('error', errorMsg);
+                }
+                return false;
+            }
+        }
+        
+        function addMessage(role, content, shouldSave = true) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.setAttribute('role', 'article');
+            messageDiv.setAttribute('aria-label', `${role} message`);
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.setAttribute('aria-hidden', 'true');
+            avatar.textContent = role === 'user' ? 'U' : role === 'error' ? '!' : 'AI';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            const title = document.createElement('h4');
+            title.textContent = role === 'user' ? 'You' : role === 'error' ? 'System Error' : 'AI Assistant';
+            
+            const messageText = document.createElement('div');
+            messageText.className = 'message-text';
+            
+            // Basic markdown support for code blocks
+            if (content.includes('```')) {
+                messageText.innerHTML = content.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+                    const escaped = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    return `<pre><code class="language-${lang || 'plaintext'}">${escaped}</code></pre>`;
+                });
+            } else {
+                messageText.textContent = content;
+            }
+            
+            messageContent.appendChild(title);
+            messageContent.appendChild(messageText);
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            // Save chat history
+            if (shouldSave && role !== 'error') {
+                saveChatHistory();
+            }
+            
+            // Announce message to screen readers
+            if (role === 'assistant' || role === 'error') {
+                const announcement = document.createElement('div');
+                announcement.setAttribute('role', 'status');
+                announcement.setAttribute('aria-live', 'polite');
+                announcement.className = 'sr-only';
+                announcement.textContent = `${title.textContent}: ${content}`;
+                document.body.appendChild(announcement);
+                setTimeout(() => announcement.remove(), 1000);
+            }
+        }
+        
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) {
+                messageInput.focus();
+                return;
+            }
+            
+            // Validate message length
+            if (message.length > 10000) {
+                addMessage('error', 'Message is too long. Please keep it under 10,000 characters.');
+                return;
+            }
+            
+            // Check connection first
+            if (!(await checkConnection())) {
+                return;
+            }
+            
+            // Disable input while processing
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+            sendButton.disabled = true;
+            messageInput.disabled = true;
+            
+            // Add user message
+            addMessage('user', message);
+            
+            // Show typing indicator
+            typingIndicator.className = 'typing-indicator active';
+            chatContainer.appendChild(typingIndicator);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            try {
+                console.log('Sending request to:', apiBase + '/api/generate');
+                console.log('Model:', modelSelect.value);
+                console.log('Prompt:', message);
+                
+                const response = await fetch(apiBase + '/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: modelSelect.value,
+                        prompt: message,
+                        stream: false
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                // Hide typing indicator
+                typingIndicator.className = 'typing-indicator';
+                if (typingIndicator.parentNode) {
+                    typingIndicator.parentNode.removeChild(typingIndicator);
+                }
+                
+                if (data.response) {
+                    addMessage('assistant', data.response);
+                } else if (data.error) {
+                    addMessage('error', `Ollama Error: ${data.error}`);
+                } else {
+                    addMessage('error', 'No response received from AI model');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                // Hide typing indicator
+                typingIndicator.className = 'typing-indicator';
+                if (typingIndicator.parentNode) {
+                    typingIndicator.parentNode.removeChild(typingIndicator);
+                }
+                
+                addMessage('error', `Error: ${error.message}\n\nPlease make sure:\n1. Ollama is running (ollama serve)\n2. The model "${modelSelect.value}" is available\n3. Try running: ollama run ${modelSelect.value}`);
+            } finally {
+                sendButton.disabled = false;
+                messageInput.disabled = false;
+                messageInput.focus();
+            }
+        }
+        
+        // Auto-resize textarea and update character counter
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+            
+            // Update character counter
+            const length = this.value.length;
+            const maxLength = 10000;
+            const remaining = maxLength - length;
+            
+            if (length > 0) {
+                charCounter.textContent = `${length} / ${maxLength}`;
+                charCounter.classList.toggle('warning', remaining < 500);
+            } else {
+                charCounter.textContent = '';
+            }
+        });
+        
+        // Send on Enter
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Add click event listener to send button
+        sendButton.addEventListener('click', sendMessage);
+        
+        // Add change event listener to model selector
+        modelSelect.addEventListener('change', function() {
+            console.log('Model changed to:', this.value);
+        });
+        
+        // Add clear chat functionality
+        clearButton.addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear the chat history?')) {
+                chatContainer.innerHTML = '';
+                localStorage.removeItem(CHAT_HISTORY_KEY);
+                addMessage('assistant', 'Chat history cleared. How can I help you today?');
+            }
+        });
+        
+        // Periodic connection check
+        let connectionCheckInterval;
+        
+        function startConnectionMonitoring() {
+            // Check connection every 30 seconds
+            connectionCheckInterval = setInterval(async () => {
+                const wasConnected = status.classList.contains('connected');
+                const isConnected = await checkConnection(false); // Don't show errors for periodic checks
+                
+                // If connection status changed from disconnected to connected
+                if (!wasConnected && isConnected) {
+                    addMessage('assistant', '✅ Connection restored! You can continue chatting.');
+                }
+            }, 30000);
+        }
+        
+        // Initial setup
+        window.addEventListener('DOMContentLoaded', async () => {
+            const mode = isLocalServer ? 'server mode' : 'direct mode';
+            addMessage('assistant', `Hello! I'm your local AI assistant running in ${mode}. Let me check the connection...`);
+            const connected = await checkConnection();
+            if (connected) {
+                addMessage('assistant', '✅ Connected successfully! How can I help you today?');
+                startConnectionMonitoring();
+            }
+            messageInput.focus();
+        });
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (connectionCheckInterval) {
+                clearInterval(connectionCheckInterval);
+            }
+        });
+    </script>
+</body>
+</html> 

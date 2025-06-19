@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Ollama Chat</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .chat-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: 500px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .user {
+            background: #007AFF;
+            color: white;
+            margin-left: 100px;
+        }
+        .assistant {
+            background: #E5E5EA;
+            color: black;
+            margin-right: 100px;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        button {
+            padding: 12px 24px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0051D0;
+        }
+        .model-selector {
+            margin-bottom: 20px;
+        }
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>🤖 Local AI Chat</h1>
+    
+    <div class="model-selector">
+        <label>Model: </label>
+        <select id="modelSelect">
+            <option value="qwen3:14b">Qwen3 14B</option>
+            <option value="llama3.2:latest">Llama 3.2</option>
+        </select>
+    </div>
+
+    <div id="chatContainer" class="chat-container"></div>
+    
+    <div class="input-container">
+        <input type="text" id="messageInput" placeholder="Type your message here..." />
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const chatContainer = document.getElementById('chatContainer');
+            const modelSelect = document.getElementById('modelSelect');
+            
+            const message = input.value.trim();
+            if (!message) return;
+            
+            // Add user message
+            chatContainer.innerHTML += `<div class="message user">${message}</div>`;
+            input.value = '';
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            try {
+                const response = await fetch('http://localhost:11434/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: modelSelect.value,
+                        prompt: message,
+                        stream: false
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Add AI response
+                chatContainer.innerHTML += `<div class="message assistant">${data.response}</div>`;
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                
+            } catch (error) {
+                chatContainer.innerHTML += `<div class="message assistant">Error: ${error.message}</div>`;
+            }
+        }
+        
+        // Allow Enter key to send message
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html> 

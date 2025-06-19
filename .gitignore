@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.env
+
+# Model weights (large files)
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+*.pb
+*.h5
+*.ckpt
+model.safetensors
+checkpoint*/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Large data files
+*.jsonl
+data/
+outputs/
+
+# Cache
+.cache/
+*.cache
+huggingface/
+
+# Temporary files
+tmp/
+temp/
+
+# Qwen model files (too large)
+qwen/models/qwen1.5-1.8B/model.safetensors
+qwen/models/qwen1.5-1.8B/.cache/

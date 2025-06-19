@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local AI Assistant - Fixed</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: #1a1a1a;
+            padding: 15px 20px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            background: linear-gradient(45deg, #00ff88, #00aaff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .model-selector select {
+            background: #2a2a2a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        
+        .message {
+            margin: 20px 0;
+            display: flex;
+            gap: 15px;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .user .avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .assistant .avatar {
+            background: linear-gradient(135deg, #00ff88 0%, #00aaff 100%);
+        }
+        
+        .error .avatar {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        }
+        
+        .message-content {
+            flex: 1;
+        }
+        
+        .message-content h4 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            opacity: 0.8;
+        }
+        
+        .message-text {
+            line-height: 1.6;
+            color: #e0e0e0;
+            white-space: pre-wrap;
+        }
+        
+        .error .message-text {
+            color: #ff6b6b;
+        }
+        
+        .input-container {
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            padding: 20px;
+        }
+        
+        .input-wrapper {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        
+        .input-box {
+            flex: 1;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 12px;
+            color: #e0e0e0;
+            font-size: 16px;
+            resize: none;
+            min-height: 24px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: inherit;
+        }
+        
+        .input-box:focus {
+            outline: none;
+            border-color: #00ff88;
+        }
+        
+        .send-button {
+            background: linear-gradient(135deg, #00ff88 0%, #00aaff 100%);
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .send-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+        
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status.connected {
+            background: #2a2a2a;
+        }
+        
+        .status.error {
+            background: #ff6b6b;
+            color: white;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        
+        .status.connected .status-dot {
+            background: #00ff88;
+        }
+        
+        .status.error .status-dot {
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Local AI Assistant</h1>
+        <div class="model-selector">
+            <select id="modelSelect">
+                <option value="qwen3:14b">Qwen3 14B</option>
+                <option value="llama3.2:latest">Llama 3.2</option>
+                <option value="finance-assistant:latest">Finance Assistant</option>
+            </select>
+        </div>
+    </div>
+    
+    <div id="chatContainer" class="chat-container"></div>
+    
+    <div class="input-container">
+        <div class="input-wrapper">
+            <textarea 
+                id="messageInput" 
+                class="input-box" 
+                placeholder="Ask me anything..."
+                rows="1"
+            ></textarea>
+            <button id="sendButton" class="send-button" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+    
+    <div id="status" class="status connected">
+        <div class="status-dot"></div>
+        <span id="statusText">Checking connection...</span>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const modelSelect = document.getElementById('modelSelect');
+        const status = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
+        
+        // Check Ollama connection
+        async function checkConnection() {
+            try {
+                const response = await fetch('http://localhost:11434/api/tags');
+                if (response.ok) {
+                    status.className = 'status connected';
+                    statusText.textContent = 'Connected to Local AI';
+                    return true;
+                } else {
+                    throw new Error('Server responded with error');
+                }
+            } catch (error) {
+                status.className = 'status error';
+                statusText.textContent = 'Ollama not connected';
+                addMessage('error', 'Connection Error: Cannot connect to Ollama on localhost:11434.\n\nTroubleshooting:\n1. Make sure Ollama is running\n2. Try running: ollama serve\n3. Check if port 11434 is accessible');
+                return false;
+            }
+        }
+        
+        function addMessage(role, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.textContent = role === 'user' ? 'U' : role === 'error' ? '!' : 'AI';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            const title = document.createElement('h4');
+            title.textContent = role === 'user' ? 'You' : role === 'error' ? 'System Error' : 'AI Assistant';
+            
+            const messageText = document.createElement('div');
+            messageText.className = 'message-text';
+            messageText.textContent = content;
+            
+            messageContent.appendChild(title);
+            messageContent.appendChild(messageText);
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            // Check connection first
+            if (!(await checkConnection())) {
+                return;
+            }
+            
+            // Disable input while processing
+            messageInput.value = '';
+            sendButton.disabled = true;
+            
+            // Add user message
+            addMessage('user', message);
+            
+            try {
+                console.log('Sending request to:', 'http://localhost:11434/api/generate');
+                console.log('Model:', modelSelect.value);
+                console.log('Prompt:', message);
+                
+                const response = await fetch('http://localhost:11434/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: modelSelect.value,
+                        prompt: message,
+                        stream: false
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (data.response) {
+                    addMessage('assistant', data.response);
+                } else {
+                    addMessage('error', 'No response received from AI model');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('error', `Error: ${error.message}\n\nPlease make sure:\n1. Ollama is running (ollama serve)\n2. The model "${modelSelect.value}" is available\n3. Try running: ollama run ${modelSelect.value}`);
+            } finally {
+                sendButton.disabled = false;
+                messageInput.focus();
+            }
+        }
+        
+        // Auto-resize textarea
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+        
+        // Send on Enter
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Initial setup
+        window.onload = async () => {
+            addMessage('assistant', 'Hello! I\'m your local AI assistant. Let me check the connection...');
+            const connected = await checkConnection();
+            if (connected) {
+                addMessage('assistant', '✅ Connected successfully! How can I help you today?');
+            }
+            messageInput.focus();
+        };
+    </script>
+</body>
+</html> 
