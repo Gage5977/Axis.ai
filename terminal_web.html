@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            color: #fff;
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            padding: 10px;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #terminal {
+            height: 100%;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .line {
+            margin: 0;
+        }
+
+        .prompt {
+            color: #fff;
+        }
+
+        .input-line {
+            display: flex;
+            margin: 0;
+        }
+
+        #cursor {
+            background: #fff;
+            width: 8px;
+            height: 16px;
+            display: inline-block;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+
+        #input {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .output {
+            color: #ccc;
+        }
+
+        .error {
+            color: #f44;
+        }
+
+        .success {
+            color: #4f4;
+        }
+
+        .dim {
+            color: #666;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #111;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="terminal">
+        <div class="line">AI Terminal v1.0</div>
+        <div class="line dim">Type 'help' for commands</div>
+        <div class="line"></div>
+    </div>
+    <input type="text" id="input" autocomplete="off">
+
+    <script>
+        const terminal = document.getElementById('terminal');
+        const hiddenInput = document.getElementById('input');
+        let currentLine = '';
+        let history = [];
+        let historyIndex = -1;
+        let currentMode = 'chat';
+        let currentModel = 'mistral:latest';
+
+        // API configuration
+        const API_URL = 'http://localhost:5000';
+
+        function addLine(text, className = '') {
+            const line = document.createElement('div');
+            line.className = 'line' + (className ? ' ' + className : '');
+            line.textContent = text;
+            terminal.appendChild(line);
+            updatePrompt();
+            scrollToBottom();
+        }
+
+        function updatePrompt() {
+            // Remove existing input line if present
+            const existingInput = terminal.querySelector('.input-line');
+            if (existingInput) {
+                existingInput.remove();
+            }
+
+            // Add new input line
+            const inputLine = document.createElement('div');
+            inputLine.className = 'line input-line';
+            
+            const prompt = document.createElement('span');
+            prompt.className = 'prompt';
+            prompt.textContent = `[${currentMode}] $ `;
+            
+            const inputText = document.createElement('span');
+            inputText.textContent = currentLine;
+            
+            const cursor = document.createElement('span');
+            cursor.id = 'cursor';
+            
+            inputLine.appendChild(prompt);
+            inputLine.appendChild(inputText);
+            inputLine.appendChild(cursor);
+            
+            terminal.appendChild(inputLine);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        async function processCommand(command) {
+            const parts = command.trim().split(' ');
+            const cmd = parts[0].toLowerCase();
+
+            switch(cmd) {
+                case 'help':
+                    addLine('Commands:');
+                    addLine('  help              Show this help');
+                    addLine('  clear             Clear terminal');
+                    addLine('  mode <name>       Switch mode (chat, code, finance, logic)');
+                    addLine('  models            List available models');
+                    addLine('  use <model>       Switch to a different model');
+                    addLine('  status            Show server status');
+                    addLine('  exit              Close terminal');
+                    addLine('');
+                    addLine('Current mode: ' + currentMode);
+                    addLine('Current model: ' + currentModel);
+                    break;
+
+                case 'clear':
+                    terminal.innerHTML = '';
+                    break;
+
+                case 'mode':
+                    if (parts[1]) {
+                        const validModes = ['chat', 'code', 'finance', 'logic'];
+                        if (validModes.includes(parts[1])) {
+                            currentMode = parts[1];
+                            addLine(`Switched to ${currentMode} mode`, 'success');
+                        } else {
+                            addLine(`Invalid mode. Choose from: ${validModes.join(', ')}`, 'error');
+                        }
+                    } else {
+                        addLine('Current mode: ' + currentMode);
+                    }
+                    break;
+
+                case 'models':
+                    await listModels();
+                    break;
+
+                case 'use':
+                    if (parts[1]) {
+                        await switchModel(parts[1]);
+                    } else {
+                        addLine('Usage: use <model_name>', 'error');
+                    }
+                    break;
+
+                case 'status':
+                    await checkStatus();
+                    break;
+
+                case 'exit':
+                    addLine('Goodbye!', 'dim');
+                    setTimeout(() => window.close(), 1000);
+                    break;
+
+                default:
+                    // Send to AI
+                    await sendToAI(command);
+            }
+        }
+
+        async function checkStatus() {
+            try {
+                const res = await fetch(`${API_URL}/status`);
+                if (res.ok) {
+                    const data = await res.json();
+                    addLine('Server Status:', 'dim');
+                    addLine(`  Status: ${data.status}`, 'success');
+                    addLine(`  Model: ${data.current_model}`);
+                    addLine(`  Instant models: ${data.instant_models ? 'Available' : 'Not available'}`);
+                } else {
+                    throw new Error('Server not responding');
+                }
+            } catch (error) {
+                addLine('Server is not running', 'error');
+                addLine('Start with: python3 local_ai_server.py', 'dim');
+            }
+        }
+
+        async function listModels() {
+            try {
+                const res = await fetch(`${API_URL}/models`);
+                if (res.ok) {
+                    const data = await res.json();
+                    addLine('Available models:', 'dim');
+                    data.models.forEach(model => {
+                        const active = model.name === currentModel ? ' (active)' : '';
+                        addLine(`  ${model.name.padEnd(25)} ${model.size}${active}`);
+                    });
+                } else {
+                    throw new Error('Could not fetch models');
+                }
+            } catch (error) {
+                // Fallback to showing known models
+                addLine('Server offline. Known models:', 'dim');
+                addLine('  mistral:latest');
+                addLine('  qwen3:14b');
+                addLine('  llama3.2:latest');
+                addLine('  finance-assistant:latest');
+            }
+        }
+
+        async function switchModel(modelName) {
+            try {
+                const res = await fetch(`${API_URL}/switch_model`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: modelName })
+                });
+                
+                if (res.ok) {
+                    currentModel = modelName;
+                    addLine(`Switched to model: ${modelName}`, 'success');
+                } else {
+                    addLine(`Model '${modelName}' not found`, 'error');
+                }
+            } catch (error) {
+                addLine('Could not switch model (server offline)', 'error');
+            }
+        }
+
+        async function sendToAI(message) {
+            addLine('', 'dim');  // Empty line for spacing
+            
+            try {
+                const res = await fetch(`${API_URL}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        message: message,
+                        mode: currentMode 
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    const lines = data.response.split('\n');
+                    lines.forEach(line => addLine(line, 'output'));
+                    
+                    if (data.model === 'instant') {
+                        addLine('', 'dim');
+                        addLine('[Instant response - no AI model needed]', 'dim');
+                    }
+                } else {
+                    throw new Error('Server error');
+                }
+            } catch (error) {
+                // Try local processing
+                let handled = false;
+                
+                if (currentMode === 'finance') {
+                    const result = processFinance(message);
+                    if (result) {
+                        addLine(result, 'output');
+                        addLine('', 'dim');
+                        addLine('[Local calculation]', 'dim');
+                        handled = true;
+                    }
+                } else if (currentMode === 'code') {
+                    const result = processCode(message);
+                    if (result) {
+                        addLine(result, 'output');
+                        addLine('', 'dim');
+                        addLine('[Local analysis]', 'dim');
+                        handled = true;
+                    }
+                }
+                
+                if (!handled) {
+                    addLine("Server not running. Start with:", 'error');
+                    addLine("python3 local_ai_server.py", 'dim');
+                }
+            }
+            
+            addLine('');  // Empty line after response
+        }
+
+        function processFinance(query) {
+            const numbers = query.match(/\d+\.?\d*/g);
+            if (query.toLowerCase().includes('roi') && numbers && numbers.length >= 2) {
+                const investment = parseFloat(numbers[0]);
+                const returns = parseFloat(numbers[1]);
+                const roi = ((returns - investment) / investment * 100).toFixed(2);
+                return `ROI: ${roi}%\nInvestment: $${investment}\nReturn: $${returns}`;
+            }
+            return null;
+        }
+
+        function processCode(query) {
+            if (query.includes('function') || query.includes('{') || query.includes('def')) {
+                const lines = query.split('\n').length;
+                const functions = (query.match(/function|def/g) || []).length;
+                const complexity = (query.match(/if|for|while|switch/g) || []).length;
+                return `Lines: ${lines}\nFunctions: ${functions}\nComplexity: ${complexity}`;
+            }
+            return null;
+        }
+
+        // Input handling
+        document.addEventListener('click', () => hiddenInput.focus());
+        
+        hiddenInput.addEventListener('input', (e) => {
+            currentLine = e.target.value;
+            updatePrompt();
+        });
+
+        hiddenInput.addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const command = currentLine.trim();
+                if (command) {
+                    // Show the command in terminal
+                    const inputLine = terminal.querySelector('.input-line');
+                    if (inputLine) {
+                        inputLine.classList.remove('input-line');
+                        inputLine.querySelector('#cursor')?.remove();
+                    }
+                    
+                    history.push(command);
+                    historyIndex = history.length;
+                    
+                    // Process command
+                    await processCommand(command);
+                    
+                    currentLine = '';
+                    hiddenInput.value = '';
+                }
+                updatePrompt();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    currentLine = history[historyIndex];
+                    hiddenInput.value = currentLine;
+                    updatePrompt();
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < history.length - 1) {
+                    historyIndex++;
+                    currentLine = history[historyIndex];
+                    hiddenInput.value = currentLine;
+                } else {
+                    historyIndex = history.length;
+                    currentLine = '';
+                    hiddenInput.value = '';
+                }
+                updatePrompt();
+            } else if (e.ctrlKey && e.key === 'l') {
+                e.preventDefault();
+                terminal.innerHTML = '';
+                updatePrompt();
+            }
+        });
+
+        // Initialize
+        updatePrompt();
+        hiddenInput.focus();
+        
+        // Check server status on load
+        setTimeout(checkStatus, 100);
+    </script>
+</body>
+</html>
